@@ -26,6 +26,17 @@
   <body>
     <div id="main">
       <h1>chatterbox</h1>
+      <div id="roomSelect"></div>
+
+      <form action="#" id="rooms" method="post">
+        <input type="text" name="room" id="newRoom" placeholder="Create room..." />
+        <input type="submit" name="add" class="submit"/>
+      </form>
+
+      <form action="#" onsubmit="app.handleSubmit(e)" id="send" method="post">
+        <input type="text" name="message" id="message" placeholder="Enter your message here..." />
+        <input type="submit" name="post" class="submit"/>
+      </form>
       <!-- Your HTML goes here! -->
     </div>
     <div id="chats"></div>
