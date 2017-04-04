@@ -113,3 +113,9 @@ app.handleSubmit = function(e) {
   app.send({text:text, username:window.location.search.slice(10), room:'lobby'});//change room name
   //setTimeout(function(){app.fetch()}, 1000);
 };
+
+
+
+
+// http://parseplatform.org/docs/rest/guide/#queries
+// data:"&order="+roomname
