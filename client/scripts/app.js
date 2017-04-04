@@ -13,6 +13,9 @@ app.send = function(userInput) {
     data: JSON.stringify(userInput),
     contentType: 'application/json',
     success: function(data) {
+      //debugger;
+
+      app.fetch();
       console.log('chatterbox: Message sent');
     },
     error: function(data) {
@@ -20,24 +23,21 @@ app.send = function(userInput) {
     }
   });
 };
-
+//'type=' + type + '&user_id=' + user_id;
 app.fetch = function() {
   $.ajax({
     type: 'GET',
     url: app.server,
+    data: 'order=-createdAt',
     success: function(data) {
+      console.log(data.results);
       var main = $('#chats');
       for (var i = 0; i < data.results.length; i++) {
         app.renderMessage(data.results[i]);
-        // var message = $('<div></div>');
-        // var user = $('<h6></h6>');
-        // user.text(data.results[i].username);
-        // message.append(user);
-        // var userMessage = $('<p>' + '</p>');
-        // userMessage.text(data.results[i].text);
-        // message.append(userMessage);
-        // main.append(message);
       }
+    },
+    error: function(data) {
+      console.error('chatterbox: Failed to retrieve messages :\'(');
     }
   });
 };
@@ -74,7 +74,7 @@ app.addRoom = function(e) {
   var roomName = $('#newRoom').val();
   app.roomList.push(roomName);
   app.renderAllRooms();
-  app.send({text:"", username:window.location.search.slice(10), room:roomName});
+  app.send({text:"asdf", username:window.location.search.slice(10), room:roomName});
 };
 
 app.renderAllRooms = function() {
