@@ -1,9 +1,48 @@
+var helper = {
+  hash: function (str) {
+    //console.log(str);
+    var hash = 0;
+    if (str.length === 0) {
+      return hash;
+    } 
+    for (i = 0; i < str.length; i++) {
+      char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32bit integer
+    }
+    return hash;
+  }
+};
+
+
+var self = {
+  activeRoom: 'lobby',
+  addFriend: function(name) {
+    this._friends[name] = true;
+  },
+  removeFriend: function(name) {
+    delete this._friends[name];
+  },
+  friendInList: function(name) {
+    return self._friends[name] !== undefined;
+  },
+  _friends: {},
+  getFriendsList: function() {
+    return Object.keys(this._friends);
+  }
+};
+
+
 var app = {};
 
 app.server = 'http://parse.atx.hackreactor.com/chatterbox/classes/messages';
 app.roomList = [];
 app.init = function() {
-
+  $('#rooms').submit(app.addRoom);
+  $('#send').submit(app.handleSubmit);
+  app.fetch({order: '-createdAt'}, false);
+  app.currentTop;
+  app.handler;
 };
 
 app.send = function(userInput) {
@@ -13,33 +52,39 @@ app.send = function(userInput) {
     data: JSON.stringify(userInput),
     contentType: 'application/json',
     success: function(data) {
-      //debugger;
-      console.log('asdfss');
-      app.fetch({roomname: self.activeRoom, order: '-createdAt'}, true);
+      // app.fetch({where: JSON.stringify({roomname: self.activeRoom}), order: '-createdAt'}, true);
       console.log('chatterbox: Message sent');
-      setTimeout(app.fetch, 1000);
     },
     error: function(data) {
       console.error('chatterbox: Failed to send message', data);
     }
   });
 };
-app.fetch = function(params = {order: '-createdAt'}, render=true) {
+
+app.fetch = function(params = {order: '-createdAt'}, render = true) {
   $.ajax({
     type: 'GET',
     url: app.server,
-    //data: 'order=-createdAt',
     data: $.param(params),
     success: function(data) {
-      console.log(data.results);
+      render = render && (data.results.length > 0 && app.currentTop !== JSON.stringify(data.results[0]));
+      app.currentTop = JSON.stringify(data.results[0]);
       var main = $('#chats');
-      app.clearMessages();
+      if (render) {
+        app.clearMessages();
+      }
       for (var i = 0; i < data.results.length; i++) {
-        if(render) {
+        if (render) {
           app.renderMessage(data.results[i]);
         }
         app.addToRoomList(data.results[i].roomname);
-        console.log(data.results[i].roomname)
+      }
+      // checks for new messages
+      if (render) {
+        app.handler = setTimeout(function a() {
+          app.fetch({where: JSON.stringify({roomname: self.activeRoom}), order: '-createdAt'}, true);
+          setTimeout(a, 1000);
+        }, 1000);
       }
     },
     error: function(data) {
@@ -57,9 +102,13 @@ app.renderMessage = function(message) {
   var $main = $('#chats');
   var $message = $('<div></div>');
   var $user = $('<a class="username" href="#"></a>');
-  $user.click(function() {
-    app.handleUsernameClick(message.username);
+  $message.attr('username', message.username);
+  $user.click(function(e) {
+    app.handleUsernameClick(message.username); // creating new function everytime -- make it more efficient
   });
+  if (self.friendInList(message.username)) {
+    $message.addClass('friend');
+  }
   $user.text(message.username);
   $message.append($user);
   var $userMessage = $('<p>' + '</p>');
@@ -80,8 +129,16 @@ app.renderRoom = function(roomName) {
   $('#roomSelect').append($roomName);
 };
 
+app.renderAllRooms = function() {
+  $('#roomSelect').html('');
+  for (var i = 0; i < app.roomList.length; i++) {
+    app.renderRoom(app.roomList[i]);
+    $('#roomSelect').append($('<br />'));
+  }
+};
+
 app.addToRoomList = function(roomName) {
-  if(app.roomList.includes(roomName)) {
+  if (app.roomList.includes(roomName) || roomName === undefined) {
     return false;
   }
   app.roomList.push(roomName);
@@ -91,80 +148,39 @@ app.addToRoomList = function(roomName) {
 app.addRoom = function(e) {
   e.preventDefault();
   var roomName = $('#newRoom').val();
-  if(app.addToRoomList(roomName)) {
+  if (app.addToRoomList(roomName) === false) {
     alert('Room already exists');
     return;
   }
-};
-
-app.renderAllRooms = function() {
-  $('#roomSelect').html('');
-  for(var i = 0; i < app.roomList.length; i++) {
-    app.renderRoom(app.roomList[i]);
-    $('#roomSelect').append($('<br />'));
-  }
-};
-
-$(document).ready(function(){
-  $('#rooms').submit(app.addRoom);
-  $('#send').submit(app.handleSubmit);
-  console.log(app.roomList);
-  app.fetch({order: '-createdAt'}, false);
-  app.displayRoom(self.activeRoom);
-});
-
-var self = {
-  // username: window.location.search.slice(10),
-  activeRoom: 'lobby',
-  addFriend: function(name) {
-    this._friends[name] = true;
-  },
-  removeFriend: function(name) {
-    delete this._friends[name];
-  },
-  _friends: {},
-  getFriendsList: function() {
-    return Object.keys(this._friends);
-  }
+  app.displayRoom(roomName);
+  $('#newRoom').val('');
 };
 
 app.handleUsernameClick = function (name) {
   self.addFriend(name);
+  app.fetch({where: JSON.stringify({roomname: self.activeRoom}), order: '-createdAt'}, true);
+  $('[username=' + name + ']').addClass('friend');
 };
 
 app.handleSubmit = function(e) {
-  
   e.preventDefault();
   var text = $('#message').val();
-  app.send({text:text, username:window.location.search.slice(10), roomname:self.activeRoom});//change room name
-  //setTimeout(function(){app.fetch()}, 1000);
+  app.send({text: text, username: window.location.search.slice(10), roomname: self.activeRoom});
+  $('#message').val('');
 };
 
 app.displayRoom = function(roomName) {
-  var params = {where: JSON.stringify({roomname: roomName}), order: '-createdAt'};
-  app.fetch(params);
   $('#' + helper.hash(self.activeRoom)).removeClass('activeRoom');
   $('#' + helper.hash(roomName)).addClass('activeRoom');
   self.activeRoom = roomName;
-};
-
-
-var helper = {
-  hash: function (str){
-    var hash = 0;
-    if (str.length === 0) {
-      return hash;
-    } 
-    for (i = 0; i < str.length; i++) {
-      char = str.charCodeAt(i);
-      hash = ((hash<<5)-hash)+char;
-      hash = hash & hash; // Convert to 32bit integer
-    }
-    return hash;
+  var params = {where: JSON.stringify({roomname: self.activeRoom}), order: '-createdAt'};
+  if (app.handler) {
+    clearTimeout(app.handler);
   }
+  app.clearMessages();
+  app.fetch(params);
+  $('h1').text('chatterbox/' + self.activeRoom);
+  $('title').text('chatterbox/' + self.activeRoom);
 };
 
 // http://parseplatform.org/docs/rest/guide/#queries
-// roomName = <a> link currently
-// add event handler function that fetch messages with parameter of roomName = clicked roomName
-// data:"&order="+roomname
