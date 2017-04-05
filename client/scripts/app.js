@@ -81,6 +81,9 @@ app.fetch = function(params = {order: '-createdAt'}, render = true) {
       }
       // checks for new messages
       if (render) {
+        if (app.handler !== undefined) {
+          clearTimeout(app.handler);
+        }
         app.handler = setTimeout(function a() {
           app.fetch({where: JSON.stringify({roomname: self.activeRoom}), order: '-createdAt'}, true);
           setTimeout(a, 1000);
@@ -174,9 +177,9 @@ app.displayRoom = function(roomName) {
   $('#' + helper.hash(roomName)).addClass('activeRoom');
   self.activeRoom = roomName;
   var params = {where: JSON.stringify({roomname: self.activeRoom}), order: '-createdAt'};
-  if (app.handler) {
+  if (app.handler !== undefined) {
     clearTimeout(app.handler);
-  }
+  } 
   app.clearMessages();
   app.fetch(params);
   $('h1').text('chatterbox/' + self.activeRoom);
